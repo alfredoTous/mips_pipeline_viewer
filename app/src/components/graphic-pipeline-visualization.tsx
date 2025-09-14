@@ -38,7 +38,7 @@ const EX_COMPONENTS: AreaComponent[] = [
     { x: 58.8, y: 56,  w: 2.3, h: 14, label: 'MUX' },
 
     // ALU 
-    { x: 63.5, y: 46,  w: 6, h: 17.5, label: 'ALU' },
+    { x: 63.5, y: 46,  w: 6, h: 18, label: 'ALU' },
 
     // EX/MEM  pipeline
     { x: 72.3, y: 11.3,  w: 2.6, h: 83, label: 'EX/MEM' },
@@ -47,7 +47,7 @@ const EX_COMPONENTS: AreaComponent[] = [
 
 const MEM_COMPONENTS: AreaComponent[] = [
   // Data memory
-  { x: 77.8, y: 51,  w: 11.2, h: 25.5, label: 'Memory' },
+  { x: 77.8, y: 51.2,  w: 11.2, h: 25.5, label: 'Memory' },
 
   // MEM/WB  pipeline
   { x: 90.7, y: 11.3,  w: 2.6,  h: 83,   label: 'MEM/WB' },
@@ -371,6 +371,153 @@ function EXLoadOverlays() {
   );
 }
 
+function MEMLoadOverlays({ allAreas }: { allAreas: AreaComponent[] }) {
+  const { instructions, instructionStages, registerUsage } = useSimulationState();
+  const i = 0; 
+
+  if (!instructions[i]) return null;
+  const usage = registerUsage[i];
+  if (!usage || !usage.isLoad) return null;  
+  const stageIndex = instructionStages[i];
+  if (stageIndex !== 3) return null;         // 3 = MEM
+
+  const label = letterForIndex(i);
+  const bg = colorForIndex(i);
+
+  const get = (label: string) => ALL_COMPONENTS.find(a => a.label === label);
+
+  const targets: Array<{ area: AreaComponent | undefined; half: Half }> = [
+    { area: get('EX/MEM'),  half: 'right' },
+    { area: get('Memory'),  half: 'right' },
+    { area: get('MEM/WB'),  half: 'left'  },
+  ];
+
+  return (
+    <>
+      {targets.map((t, idx) => {
+        if (!t.area) return null;
+        const a = t.area;
+
+        const base: React.CSSProperties = {
+          position: 'absolute',
+          left: `${a.x}%`,
+          top: `${a.y}%`,
+          width: `${a.w}%`,
+          height: `${a.h}%`,
+          pointerEvents: 'none',
+          zIndex: 33,
+        };
+
+        const leftHalf = (
+          <div key="left" style={{
+            position: 'absolute', left: 0, top: 0, width: '50%', height: '100%',
+            background: bg, border: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box'
+          }}/>
+        );
+        const rightHalf = (
+          <div key="right" style={{
+            position: 'absolute', left: '50%', top: 0, width: '50%', height: '100%',
+            background: bg, border: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box'
+          }}/>
+        );
+
+        const halves =
+          t.half === 'both' ? [leftHalf, rightHalf] :
+          t.half === 'left' ? [leftHalf] : [rightHalf];
+
+        return (
+          <div key={idx} style={base}>
+            {halves}
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              fontWeight: 700, color: 'black',
+              textShadow: '0 1px 2px rgba(87, 77, 77, 0.7)',
+              fontSize: 'clamp(10px, 1.2vw, 16px)',
+            }}>
+              {label}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function WBLoadOverlays({ allAreas }: { allAreas: AreaComponent[] }) {
+  const { instructions, instructionStages, registerUsage } = useSimulationState();
+  const i = 0; 
+
+  if (!instructions[i]) return null;
+  const usage = registerUsage[i];
+  if (!usage || !usage.isLoad) return null;     
+  const stageIndex = instructionStages[i];
+  if (stageIndex !== 4) return null;            // 4 = WB
+
+  const label = letterForIndex(i);
+  const bg = colorForIndex(i);
+
+  const get = (label: string) => allAreas.find(a => a.label === label);
+  const wbMux = WB_COMPONENTS.find(a => a.label === 'MUX');
+
+  const targets: Array<{ area: AreaComponent | undefined; half: Half }> = [
+    { area: get('Registers'), half: 'left'  }, 
+    { area: get('MEM/WB'),    half: 'right' },
+    { area: wbMux,            half: 'both'  },
+  ];
+
+  return (
+    <>
+      {targets.map((t, idx) => {
+        if (!t.area) return null;
+        const a = t.area;
+
+        const base: React.CSSProperties = {
+          position: 'absolute',
+          left: `${a.x}%`,
+          top: `${a.y}%`,
+          width: `${a.w}%`,
+          height: `${a.h}%`,
+          pointerEvents: 'none',
+          zIndex: 34,
+        };
+
+        const leftHalf = (
+          <div key="left" style={{
+            position: 'absolute', left: 0, top: 0, width: '50%', height: '100%',
+            background: bg, border: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box'
+          }}/>
+        );
+        const rightHalf = (
+          <div key="right" style={{
+            position: 'absolute', left: '50%', top: 0, width: '50%', height: '100%',
+            background: bg, border: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box'
+          }}/>
+        );
+
+        const halves =
+          t.half === 'both' ? [leftHalf, rightHalf] :
+          t.half === 'left' ? [leftHalf] : [rightHalf];
+
+        return (
+          <div key={idx} style={base}>
+            {halves}
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              fontWeight: 700, color: 'black',
+              textShadow: '0 1px 2px rgba(87, 77, 77, 0.7)',
+              fontSize: 'clamp(10px, 1.2vw, 16px)',
+            }}>
+              {label}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 
 
 
@@ -411,6 +558,8 @@ export default function GraphicPipelineVisualization({
         <IFLoadOverlays allAreas={ALL_COMPONENTS} />
         <IDLoadOverlays allAreas={ALL_COMPONENTS} />
         <EXLoadOverlays />
+        <MEMLoadOverlays allAreas={ALL_COMPONENTS} />
+        <WBLoadOverlays allAreas={ALL_COMPONENTS} />
     </div>
   );
 }
