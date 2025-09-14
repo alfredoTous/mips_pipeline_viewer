@@ -85,7 +85,7 @@ type Props = {
     maxWidthPx?: number;
 };
 
-// Only for IF stage and LOAD instructions for now
+// IF stage for LOAD instructions
 function IFLoadOverlays({
     allAreas,
 }:  {
@@ -200,6 +200,104 @@ return (
   );
 }
 
+function IDLoadOverlays({ allAreas }: { allAreas: AreaComponent[] }) {
+  const { instructions, instructionStages, registerUsage } = useSimulationState();
+
+  const i = 0;
+
+  if (!instructions[i]) return null;
+  const usage = registerUsage[i];
+  if (!usage || !usage.isLoad) return null;
+  const stageIndex = instructionStages[i];
+  if (stageIndex !== 1) return null;            // 1 = ID
+
+  const label = letterForIndex(i);
+  const bg = colorForIndex(i);
+
+  const targets: Array<{ label: string; half: Half }> = [
+    { label: 'IF/ID',    half: 'right' }, 
+    { label: 'Registers', half: 'right' }, 
+    { label: 'IG',        half: 'both'  }, 
+    { label: 'ID/EX',     half: 'left'  }, 
+  ];
+
+  return (
+    <>
+      {targets.map((t, idx) => {
+        const area = getAreaByLabel(t.label, allAreas);
+        if (!area) return null;
+
+        const baseStyle: React.CSSProperties = {
+          position: 'absolute',
+          left: `${area.x}%`,
+          top: `${area.y}%`,
+          width: `${area.w}%`,
+          height: `${area.h}%`,
+          pointerEvents: 'none',
+          zIndex: 31, 
+        };
+
+        const leftHalf = (
+          <div
+            key="left"
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: '50%',
+              height: '100%',
+              background: bg,
+              border: '1px solid rgba(0,0,0,0.25)',
+              boxSizing: 'border-box',
+            }}
+          />
+        );
+
+        const rightHalf = (
+          <div
+            key="right"
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: 0,
+              width: '50%',
+              height: '100%',
+              background: bg,
+              border: '1px solid rgba(0,0,0,0.25)',
+              boxSizing: 'border-box',
+            }}
+          />
+        );
+
+        const halves =
+          t.half === 'both' ? [leftHalf, rightHalf] :
+          t.half === 'left' ? [leftHalf] : [rightHalf];
+
+        return (
+          <div key={`${t.label}-${idx}`} style={baseStyle}>
+            {halves}
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                color: 'black',
+                textShadow: '0 1px 2px rgba(87, 77, 77, 0.7)',
+                fontSize: 'clamp(10px, 1.2vw, 16px)',
+              }}
+            >
+              {label}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 
 export default function GraphicPipelineVisualization({
     imageSrc = '/datapath.jpg',
@@ -236,6 +334,7 @@ export default function GraphicPipelineVisualization({
             </div>
         ))}
         <IFLoadOverlays allAreas={ALL_COMPONENTS} />
+        <IDLoadOverlays allAreas={ALL_COMPONENTS} />
     </div>
   );
 }
