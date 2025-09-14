@@ -18,7 +18,7 @@ const IF_COMPONENTS: AreaComponent[] = [
     { x: 15.2, y: 44, w: 11.4, h: 25.5, label: 'IM' },
 
     // IF/ID pipeline 
-    { x: 30.8, y: 11, w: 2.6, h: 83.5, label: 'IF/ID' },
+    { x: 30.8, y: 11.3, w: 2.6, h: 83, label: 'IF/ID' },
     ];
 
 
@@ -30,7 +30,7 @@ const ID_COMPONENTS: AreaComponent[] = [
     { x: 44.5, y: 74,  w: 4, h: 14.3, label: 'IG' },
 
     // ID/EX pipeline 
-    { x: 52.5, y: 11,  w: 2.6, h: 83.5, label: 'ID/EX' },
+    { x: 52.5, y: 11.3,  w: 2.6, h: 83, label: 'ID/EX' },
 ];
 
 const EX_COMPONENTS: AreaComponent[] = [
@@ -41,7 +41,7 @@ const EX_COMPONENTS: AreaComponent[] = [
     { x: 63.5, y: 46,  w: 6, h: 17.5, label: 'ALU' },
 
     // EX/MEM  pipeline
-    { x: 72.4, y: 11,  w: 2.6, h: 83.5, label: 'EX/MEM' },
+    { x: 72.3, y: 11.3,  w: 2.6, h: 83, label: 'EX/MEM' },
 ];
 
 
@@ -50,7 +50,7 @@ const MEM_COMPONENTS: AreaComponent[] = [
   { x: 77.8, y: 51,  w: 11.2, h: 25.5, label: 'Memory' },
 
   // MEM/WB  pipeline
-  { x: 90.8, y: 11,  w: 2.6,  h: 83.5,   label: 'MEM/WB' },
+  { x: 90.7, y: 11.3,  w: 2.6,  h: 83,   label: 'MEM/WB' },
 ];
 
 const WB_COMPONENTS: AreaComponent[] = [
@@ -298,6 +298,81 @@ function IDLoadOverlays({ allAreas }: { allAreas: AreaComponent[] }) {
   );
 }
 
+function EXLoadOverlays() {
+  const { instructions, instructionStages, registerUsage } = useSimulationState();
+  const i = 0; 
+
+  if (!instructions[i]) return null;
+  const usage = registerUsage[i];
+  if (!usage || !usage.isLoad) return null; 
+  const stageIndex = instructionStages[i];
+  if (stageIndex !== 2) return null;         // 2 = EX
+
+  const label = letterForIndex(i);
+  const bg = colorForIndex(i);
+
+  // Use EX_COMPONENTS directly to avoid ambiguity with other MUX areas
+  const find = (arr: AreaComponent[], label: string) => arr.find(a => a.label === label);
+
+  const targets = [
+    { area: find(ID_COMPONENTS,  'ID/EX'),   half: 'right' as const }, 
+    { area: find(EX_COMPONENTS,  'MUX'),     half: 'both'  as const }, 
+    { area: find(EX_COMPONENTS,  'ALU'),     half: 'both'  as const }, 
+    { area: find(EX_COMPONENTS,  'EX/MEM'),  half: 'left'  as const },
+  ].filter(t => t.area);
+
+  return (
+    <>
+      {targets.map((t, idx) => {
+        const area = t.area!;
+        const base: React.CSSProperties = {
+          position: 'absolute',
+          left: `${area.x}%`,
+          top: `${area.y}%`,
+          width: `${area.w}%`,
+          height: `${area.h}%`,
+          pointerEvents: 'none',
+          zIndex: 32,
+        };
+
+        const leftHalf = (
+          <div key="left" style={{
+            position: 'absolute', left: 0, top: 0, width: '50%', height: '100%',
+            background: bg, border: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box'
+          }}/>
+        );
+        const rightHalf = (
+          <div key="right" style={{
+            position: 'absolute', left: '50%', top: 0, width: '50%', height: '100%',
+            background: bg, border: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box'
+          }}/>
+        );
+
+        const halves =
+          t.half === 'both' ? [leftHalf, rightHalf] :
+          t.half === 'left' ? [leftHalf] : [rightHalf];
+
+        return (
+          <div key={idx} style={base}>
+            {halves}
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              fontWeight: 700, color: 'black',
+              textShadow: '0 1px 2px rgba(87, 77, 77, 0.7)',
+              fontSize: 'clamp(10px, 1.2vw, 16px)',
+            }}>
+              {label}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+
+
 
 export default function GraphicPipelineVisualization({
     imageSrc = '/datapath.jpg',
@@ -335,6 +410,7 @@ export default function GraphicPipelineVisualization({
         ))}
         <IFLoadOverlays allAreas={ALL_COMPONENTS} />
         <IDLoadOverlays allAreas={ALL_COMPONENTS} />
+        <EXLoadOverlays />
     </div>
   );
 }
