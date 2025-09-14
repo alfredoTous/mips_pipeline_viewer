@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
-
-const STAGES = ['IF', 'ID', 'EX', 'MEM', 'WB'] as const;
+import { useSimulationState } from '@/context/SimulationContext';
 
 type AreaComponent = { x: number; y: number; w: number; h: number; label: string };
 
@@ -68,15 +67,141 @@ const ALL_COMPONENTS: AreaComponent[] = [
     ...WB_COMPONENTS,
 ];
 
+type Half = 'left' | 'right' | 'both';
 
+const letterForIndex = (i: number) => String.fromCharCode('A'.charCodeAt(0) + i);
 
-    type Props = {
+const colorForIndex = (i: number) => {
+  const hue = (i * 137.508) % 360; 
+  return `hsl(${hue}deg 70% 50% / 0.55)`; 
+};
+
+const getAreaByLabel = (label: string, all: AreaComponent[]) =>
+  all.find((a) => a.label === label);
+
+type Props = {
     imageSrc?: string;
     showGuides?: boolean;
     maxWidthPx?: number;
-    };
+};
 
-    export default function GraphicPipelineVisualization({
+// Only for IF stage and LOAD instructions for now
+function IFLoadOverlays({
+    allAreas,
+}:  {
+    allAreas: AreaComponent[];
+})  {
+
+    const {
+        instructions,
+        instructionStages,
+        registerUsage,
+        currentCycle,
+    } = useSimulationState();
+
+    const i = 0;
+
+    // Validate useSimulationState data
+    if (!instructions[i]) return null;
+    const usage = registerUsage[i];
+    if (!usage || !usage.isLoad) return null;    // Only load
+    const stageIndex = instructionStages[i];     // Current stage 
+    if (stageIndex !== 0) return null;           // 0 = IF 
+
+    const label = letterForIndex(i);             // Letter for instruction
+    const bg = colorForIndex(i);
+
+    // Where to draw and what half
+    const targets: Array<{ label: string; half: Half }> = [
+        { label: 'MUX',   half: 'both'  },
+        { label: 'PC',    half: 'both'  },
+        { label: 'Add',   half: 'both'  },
+        { label: 'IM',    half: 'right' }, 
+        { label: 'IF/ID', half: 'left'  }, 
+    ];
+
+return (
+    <>
+      {targets.map((t, idx) => {
+        const area = getAreaByLabel(t.label, allAreas);
+        if (!area) return null;
+
+        const baseStyle: React.CSSProperties = {
+          position: 'absolute',
+          left: `${area.x}%`,
+          top: `${area.y}%`,
+          width: `${area.w}%`,
+          height: `${area.h}%`,
+          pointerEvents: 'none',
+          zIndex: 30, 
+        };
+
+        const leftHalf = (
+          <div
+            key="left"
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: '50%',
+              height: '100%',
+              background: bg,
+              border: '1px solid rgba(0,0,0,0.25)',
+              boxSizing: 'border-box',
+            }}
+          />
+        );
+
+        const rightHalf = (
+          <div
+            key="right"
+            style={{
+              position: 'absolute',
+              left: '50%',
+              top: 0,
+              width: '50%',
+              height: '100%',
+              background: bg,
+              border: '1px solid rgba(0,0,0,0.25)',
+              boxSizing: 'border-box',
+            }}
+          />
+        );
+
+        const halves =
+          t.half === 'both'
+            ? [leftHalf, rightHalf]
+            : t.half === 'left'
+            ? [leftHalf]
+            : [rightHalf];
+
+        return (
+          <div key={`${t.label}-${idx}`} style={baseStyle}>
+            {halves}
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                color: 'black',
+                textShadow: '0 1px 2px rgba(87, 77, 77, 0.7)',
+                fontSize: 'clamp(10px, 1.2vw, 16px)',
+              }}
+            >
+              {label}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+
+export default function GraphicPipelineVisualization({
     imageSrc = '/datapath.jpg',
     showGuides = true, 
     maxWidthPx = 1200,
@@ -110,7 +235,7 @@ const ALL_COMPONENTS: AreaComponent[] = [
             </div>
             </div>
         ))}
-
+        <IFLoadOverlays allAreas={ALL_COMPONENTS} />
     </div>
   );
 }
