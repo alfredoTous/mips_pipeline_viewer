@@ -1,6 +1,7 @@
 'use client';
 
 import type * as React from 'react';
+import { useState, useMemo } from 'react';
 import { InstructionInput } from '@/components/instruction-input';
 import { PipelineVisualization } from '@/components/pipeline-visualization';
 import { Separator } from '@/components/ui/separator';
@@ -8,8 +9,17 @@ import {
   useSimulationState,
   useSimulationActions,
 } from '@/context/SimulationContext'; // Import context hooks
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
 import GraphicPipelineVisualization from '@/components/graphic-pipeline-visualization';
 import NewPipelineVisualization from '@/components/ui/pipeline/New-PipelineVisualization';
+
+type ViewMode = 'table' | 'classic' | 'graphic';
 
 export default function Home() {
   // Get state and actions from context
@@ -19,6 +29,22 @@ export default function Home() {
 
   // Simulation has started if cycle > 0
   const hasStarted = currentCycle > 0;
+
+  // Local state for which visualization to render
+  const [viewMode, setViewMode] = useState<ViewMode>('classic');
+
+  // Resolve which component to render for the current view mode
+  const Visualization = useMemo(() => {
+    switch (viewMode) {
+      case 'table':
+        return PipelineVisualization;
+      case 'graphic':
+        return GraphicPipelineVisualization;
+      case 'classic':
+      default:
+        return NewPipelineVisualization;
+    }
+  }, [viewMode]);
 
   return (
     <div className='min-h-screen bg-gradient-to-br from-blue-50/50 via-white to-indigo-50/50'>
@@ -56,12 +82,31 @@ export default function Home() {
           />
         </div>
 
+        {/* Visualization method selector */}
+        <div className="w-full max-w-4xl">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600 font-montserrat">
+              Visualization method
+            </div>
+            <Select value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+              <SelectTrigger className="w-[220px]">
+                <SelectValue placeholder="Select visualization" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="classic">Classic (Stages + History)</SelectItem>
+                <SelectItem value="table">Table (Hazards/Stalls Grid)</SelectItem>
+                <SelectItem value="graphic">Graphic (Datapath Overlay)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
         <Separator className='my-8 w-full max-w-4xl bg-gradient-to-r from-transparent via-gray-300 to-transparent h-px' />
 
         {/* Conditionally render visualization and cycle info only if instructions exist */}
         {instructions.length > 0 && (
           <div className='w-full space-y-6'>
-            <NewPipelineVisualization />
+            <Visualization />
             {/* Display cycle info below the visualization */}
             {maxCycles > 0 && (
               <div className='text-center'>
