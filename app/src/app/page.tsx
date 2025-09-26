@@ -9,6 +9,7 @@ import {
   useSimulationActions,
 } from '@/context/SimulationContext'; // Import context hooks
 import GraphicPipelineVisualization from '@/components/graphic-pipeline-visualization';
+import NewPipelineVisualization from '@/components/ui/pipeline/New-PipelineVisualization';
 
 export default function Home() {
   // Get state and actions from context
@@ -60,7 +61,7 @@ export default function Home() {
         {/* Conditionally render visualization and cycle info only if instructions exist */}
         {instructions.length > 0 && (
           <div className='w-full space-y-6'>
-            <GraphicPipelineVisualization />
+            <NewPipelineVisualization />
             {/* Display cycle info below the visualization */}
             {maxCycles > 0 && (
               <div className='text-center'>
