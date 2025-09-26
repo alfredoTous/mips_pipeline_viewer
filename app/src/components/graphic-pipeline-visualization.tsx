@@ -77,6 +77,7 @@ type Half = 'left' | 'right' | 'both';
 
 const letterForIndex = (i: number) => String.fromCharCode('A'.charCodeAt(0) + i);
 
+// Distinct color per instruction index
 const colorForIndex = (i: number) => {
   const hue = (i * 137.508) % 360; 
   return `hsl(${hue}deg 70% 50% / 0.55)`; 
@@ -94,518 +95,292 @@ type Props = {
 
 const isStore = (opcode: number) => opcode >= 40 && opcode <= 43;
 
-// IF stage for LOAD instructions
-function IfOverlays({
-    allAreas,
-}:  {
-    allAreas: AreaComponent[];
-})  {
 
-    const {
-        instructions,
-        instructionStages,
-        registerUsage,
-        currentCycle,
-    } = useSimulationState();
 
-    const i = 0;
+// Overlay functions for coloring, only UI 
 
-    // Validate useSimulationState data
-    if (!instructions[i]) return null;
+// Returns base absolute positioning style for an AreaComponent 
+function baseAreaStyle(a: AreaComponent, zIndex: number): React.CSSProperties {
+  return {
+    position: 'absolute',
+    left: `${a.x}%`,
+    top: `${a.y}%`,
+    width: `${a.w}%`,
+    height: `${a.h}%`,
+    pointerEvents: 'none',
+    zIndex,
+  };
+}
+
+// Creates a left half overlay block with a given background color
+function leftHalfDiv(bg: string) {
+  return (
+    <div
+      key="left"
+      style={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        width: '50%',
+        height: '100%',
+        background: bg,
+        border: '1px solid rgba(0,0,0,0.25)',
+        boxSizing: 'border-box',
+      }}
+    />
+  );
+}
+
+// Creates a right half overlay block with a given background color 
+function rightHalfDiv(bg: string) {
+  return (
+    <div
+      key="right"
+      style={{
+        position: 'absolute',
+        left: '50%',
+        top: 0,
+        width: '50%',
+        height: '100%',
+        background: bg,
+        border: '1px solid rgba(0,0,0,0.25)',
+        boxSizing: 'border-box',
+      }}
+    />
+  );
+}
+
+// Renders one overlay with half selection and a centered label 
+function renderAreaOverlay(
+  area: AreaComponent,
+  half: Half,
+  bg: string,
+  zIndex: number,
+  label: string,
+  key: string,
+) {
+  const halves =
+    half === 'both' ? [leftHalfDiv(bg), rightHalfDiv(bg)]
+    : half === 'left' ? [leftHalfDiv(bg)]
+    : [rightHalfDiv(bg)];
+
+  return (
+    <div key={key} style={baseAreaStyle(area, zIndex)}>
+      {halves}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontWeight: 700,
+          color: 'black',
+          textShadow: '0 1px 2px rgba(255,255,255,0.7)',
+          fontSize: 'clamp(10px, 1.2vw, 16px)',
+        }}
+      >
+        {label}
+      </div>
+    </div>
+  );
+}
+
+// Given (label, half) render overlays in order
+function buildLabeledOverlays(
+  allAreas: AreaComponent[],
+  targets: Array<{ label: string; half: Half }>,
+  bg: string,
+  zIndex: number,
+  label: string,
+  keyPrefix: string,
+) {
+  const result: React.ReactNode[] = [];
+  targets.forEach((t, idx) => {
+    const area = getAreaByLabel(t.label, allAreas);
+    if (!area) return;
+    result.push(renderAreaOverlay(area, t.half, bg, zIndex, label, `${keyPrefix}-${t.label}-${idx}`));
+  });
+  return result;
+}
+
+// Given direct (area, half) render overlays in order.
+function buildDirectOverlays(
+  targets: Array<{ area?: AreaComponent; half: Half }>,
+  bg: string,
+  zIndex: number,
+  label: string,
+  keyPrefix: string,
+) {
+  const result: React.ReactNode[] = [];
+  targets.forEach((t, idx) => {
+    if (!t.area) return;
+    result.push(renderAreaOverlay(t.area, t.half, bg, zIndex, label, `${keyPrefix}-${idx}`));
+  });
+  return result;
+}
+
+
+// IF stage 
+function IfOverlays({ allAreas }: { allAreas: AreaComponent[] }) {
+  const { instructions, instructionStages, registerUsage } = useSimulationState();
+  const overlays: React.ReactNode[] = [];
+
+  for (let i = 0; i < instructions.length; i++) {
     const usage = registerUsage[i];
-    if (!usage || !(usage.isLoad || isStore(usage.opcode))) return null;    // Load or Store
-    const stageIndex = instructionStages[i];     // Current stage 
-    if (stageIndex !== 0) return null;           // 0 = IF 
+    // Only LOAD or STORE in IF
+    if (!usage || !(usage.isLoad || isStore(usage.opcode))) continue;
+    if (instructionStages[i] !== 0) continue; // 0 = IF
 
-    const label = letterForIndex(i);             // Letter for instruction
+    const label = letterForIndex(i);
     const bg = colorForIndex(i);
 
-    // Where to draw and what half
-    const targets: Array<{ label: string; half: Half }> = [
-        { label: 'MUX',   half: 'both'  },
-        { label: 'PC',    half: 'both'  },
-        { label: 'Add',   half: 'both'  },
-        { label: 'IM',    half: 'right' }, 
-        { label: 'IF/ID', half: 'left'  }, 
+    const targets = [
+      { label: 'MUX',   half: 'both' as Half },
+      { label: 'PC',    half: 'both' as Half },
+      { label: 'Add',   half: 'both' as Half },
+      { label: 'IM',    half: 'right' as Half }, // Instruction Memory --> right
+      { label: 'IF/ID', half: 'left'  as Half }, // IF/ID --> left
     ];
 
-return (
-    <>
-      {targets.map((t, idx) => {
-        const area = getAreaByLabel(t.label, allAreas);
-        if (!area) return null;
+    overlays.push(
+      ...buildLabeledOverlays(allAreas, targets, bg, 30, label, `IF-${i}`)
+    );
+  }
 
-        const baseStyle: React.CSSProperties = {
-          position: 'absolute',
-          left: `${area.x}%`,
-          top: `${area.y}%`,
-          width: `${area.w}%`,
-          height: `${area.h}%`,
-          pointerEvents: 'none',
-          zIndex: 30, 
-        };
-
-        const leftHalf = (
-          <div
-            key="left"
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              width: '50%',
-              height: '100%',
-              background: bg,
-              border: '1px solid rgba(0,0,0,0.25)',
-              boxSizing: 'border-box',
-            }}
-          />
-        );
-
-        const rightHalf = (
-          <div
-            key="right"
-            style={{
-              position: 'absolute',
-              left: '50%',
-              top: 0,
-              width: '50%',
-              height: '100%',
-              background: bg,
-              border: '1px solid rgba(0,0,0,0.25)',
-              boxSizing: 'border-box',
-            }}
-          />
-        );
-
-        const halves =
-          t.half === 'both'
-            ? [leftHalf, rightHalf]
-            : t.half === 'left'
-            ? [leftHalf]
-            : [rightHalf];
-
-        return (
-          <div key={`${t.label}-${idx}`} style={baseStyle}>
-            {halves}
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                color: 'black',
-                textShadow: '0 1px 2px rgba(87, 77, 77, 0.7)',
-                fontSize: 'clamp(10px, 1.2vw, 16px)',
-              }}
-            >
-              {label}
-            </div>
-          </div>
-        );
-      })}
-    </>
-  );
+  return <>{overlays}</>;
 }
 
 function IdOverlays({ allAreas }: { allAreas: AreaComponent[] }) {
   const { instructions, instructionStages, registerUsage } = useSimulationState();
+  const overlays: React.ReactNode[] = [];
 
-  const i = 0;
+  for (let i = 0; i < instructions.length; i++) {
+    const usage = registerUsage[i];
+    // Only LOAD or STORE in ID
+    if (!usage || !(usage.isLoad || isStore(usage.opcode))) continue;
+    if (instructionStages[i] !== 1) continue; // 1 = ID
 
-  if (!instructions[i]) return null;
-  const usage = registerUsage[i];
-  if (!usage || !(usage.isLoad || isStore(usage.opcode))) return null; // Load or Store
-  const stageIndex = instructionStages[i];
-  if (stageIndex !== 1) return null;            // 1 = ID
+    const label = letterForIndex(i);
+    const bg = colorForIndex(i);
 
-  const label = letterForIndex(i);
-  const bg = colorForIndex(i);
+    const targets = [
+      { label: 'IF/ID',     half: 'right' as Half }, // IF/ID --> right
+      { label: 'Registers', half: 'right' as Half }, // Registers --> right
+      { label: 'IG',        half: 'both'  as Half }, // Imm Gen --> both
+      { label: 'ID/EX',     half: 'left'  as Half }, // ID/EX --> left
+    ];
 
-  const targets: Array<{ label: string; half: Half }> = [
-    { label: 'IF/ID',    half: 'right' }, 
-    { label: 'Registers', half: 'right' }, 
-    { label: 'IG',        half: 'both'  }, 
-    { label: 'ID/EX',     half: 'left'  }, 
-  ];
+    overlays.push(
+      ...buildLabeledOverlays(allAreas, targets, bg, 31, label, `ID-${i}`)
+    );
+  }
 
-  return (
-    <>
-      {targets.map((t, idx) => {
-        const area = getAreaByLabel(t.label, allAreas);
-        if (!area) return null;
-
-        const baseStyle: React.CSSProperties = {
-          position: 'absolute',
-          left: `${area.x}%`,
-          top: `${area.y}%`,
-          width: `${area.w}%`,
-          height: `${area.h}%`,
-          pointerEvents: 'none',
-          zIndex: 31, 
-        };
-
-        const leftHalf = (
-          <div
-            key="left"
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              width: '50%',
-              height: '100%',
-              background: bg,
-              border: '1px solid rgba(0,0,0,0.25)',
-              boxSizing: 'border-box',
-            }}
-          />
-        );
-
-        const rightHalf = (
-          <div
-            key="right"
-            style={{
-              position: 'absolute',
-              left: '50%',
-              top: 0,
-              width: '50%',
-              height: '100%',
-              background: bg,
-              border: '1px solid rgba(0,0,0,0.25)',
-              boxSizing: 'border-box',
-            }}
-          />
-        );
-
-        const halves =
-          t.half === 'both' ? [leftHalf, rightHalf] :
-          t.half === 'left' ? [leftHalf] : [rightHalf];
-
-        return (
-          <div key={`${t.label}-${idx}`} style={baseStyle}>
-            {halves}
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                color: 'black',
-                textShadow: '0 1px 2px rgba(87, 77, 77, 0.7)',
-                fontSize: 'clamp(10px, 1.2vw, 16px)',
-              }}
-            >
-              {label}
-            </div>
-          </div>
-        );
-      })}
-    </>
-  );
+  return <>{overlays}</>;
 }
 
 function EXLoadOverlays() {
   const { instructions, instructionStages, registerUsage } = useSimulationState();
-  const i = 0; 
+  const overlays: React.ReactNode[] = [];
 
-  if (!instructions[i]) return null;
-  const usage = registerUsage[i];
-  if (!usage || !(usage.isLoad || isStore(usage.opcode))) return null;
-  const stageIndex = instructionStages[i];
-  if (stageIndex !== 2) return null;         // 2 = EX
+  const find = (arr: AreaComponent[], lbl: string) => arr.find(a => a.label === lbl);
 
-  const label = letterForIndex(i);
-  const bg = colorForIndex(i); 
-  // Use EX_COMPONENTS directly to avoid ambiguity with other MUX areas
-  const find = (arr: AreaComponent[], label: string) => arr.find(a => a.label === label);
+  for (let i = 0; i < instructions.length; i++) {
+    const usage = registerUsage[i];
+    if (!usage || !(usage.isLoad || isStore(usage.opcode))) continue;
+    if (instructionStages[i] !== 2) continue; // 2 = EX
 
-  const targets = [
-    { area: find(ID_COMPONENTS,  'ID/EX'),   half: 'right' as const }, 
-    { area: find(EX_COMPONENTS,  'MUX'),     half: 'both'  as const }, 
-    { area: find(EX_COMPONENTS,  'ALU'),     half: 'both'  as const }, 
-    { area: find(EX_COMPONENTS,  'EX/MEM'),  half: 'left'  as const },
-  ].filter(t => t.area);
+    const label = letterForIndex(i);
+    const bg = colorForIndex(i);
 
-  let busOverlays: React.ReactNode = null;
-  if (isStore(usage.opcode)) {
-  const busLabels = ['Store Bus', 'Store Bus Head'];
-  busOverlays = (
-    <>
-      {busLabels.map((lbl) => {
+    const targets = [
+      { area: find(ID_COMPONENTS, 'ID/EX'),  half: 'right' as Half }, // ID/EX --> right
+      { area: find(EX_COMPONENTS, 'MUX'),    half: 'both'  as Half }, // MUX (EX) --> both
+      { area: find(EX_COMPONENTS, 'ALU'),    half: 'both'  as Half }, // ALU --> both
+      { area: find(EX_COMPONENTS, 'EX/MEM'), half: 'left'  as Half }, // EX/MEM --> left
+    ].filter(t => t.area);
+
+    overlays.push(...buildDirectOverlays(targets, bg, 32, label, `EX-${i}`));
+
+    // Red bus ONLY for store
+    if (isStore(usage.opcode)) {
+      const busLabels = ['Store Bus', 'Store Bus Head'];
+      busLabels.forEach(lbl => {
         const b = EX_COMPONENTS.find(a => a.label === lbl);
-        if (!b) return null;
-        return (
+        if (!b) return;
+        overlays.push(
           <div
-            key={lbl}
+            key={`EX-bus-${label}-${lbl}`}
             style={{
-              position: 'absolute',
-              left: `${b.x}%`,
-              top: `${b.y}%`,
-              width: `${b.w}%`,
-              height: `${b.h}%`,
+              ...baseAreaStyle(b, 43),
               background: 'hsl(0 85% 50% / 0.6)',
-              boxShadow: '0 0 4px rgba(137, 16, 16, 0.59)',
-              pointerEvents: 'none',
-              zIndex: 43,
+              boxShadow: '0 0 4px rgba(0,0,0,0.25)',
             }}
           />
         );
-      })}
-    </>
-  );
-}
-  return (
-    <>
-      {targets.map((t, idx) => {
-        const area = t.area!;
-        const base: React.CSSProperties = {
-          position: 'absolute',
-          left: `${area.x}%`,
-          top: `${area.y}%`,
-          width: `${area.w}%`,
-          height: `${area.h}%`,
-          pointerEvents: 'none',
-          zIndex: 32,
-        };
+      });
+    }
+  }
 
-        const leftHalf = (
-          <div key="left" style={{
-            position: 'absolute', left: 0, top: 0, width: '50%', height: '100%',
-            background: bg, border: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box'
-          }}/>
-        );
-        const rightHalf = (
-          <div key="right" style={{
-            position: 'absolute', left: '50%', top: 0, width: '50%', height: '100%',
-            background: bg, border: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box'
-          }}/>
-        );
-
-        const halves =
-          t.half === 'both' ? [leftHalf, rightHalf] :
-          t.half === 'left' ? [leftHalf] : [rightHalf];
-
-        return (
-          <div key={idx} style={base}>
-            {halves}
-            <div style={{
-              position: 'absolute', inset: 0, display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-              fontWeight: 700, color: 'black',
-              textShadow: '0 1px 2px rgba(87, 77, 77, 0.7)',
-              fontSize: 'clamp(10px, 1.2vw, 16px)',
-            }}>
-              {label}
-            </div>
-          </div>
-        );
-      })}
-      {busOverlays}
-    </>
-  );
+  return <>{overlays}</>;
 }
 
-function MEMLoadOverlays({ allAreas }: { allAreas: AreaComponent[] }) {
+function MEMOverlays({ allAreas }: { allAreas: AreaComponent[] }) {
   const { instructions, instructionStages, registerUsage } = useSimulationState();
-  const i = 0; 
-
-  if (!instructions[i]) return null;
-  const usage = registerUsage[i];
-  if (!usage || !usage.isLoad) return null;  
-  const stageIndex = instructionStages[i];
-  if (stageIndex !== 3) return null;         // 3 = MEM
-
-  const label = letterForIndex(i);
-  const bg = colorForIndex(i);
-
-  const get = (label: string) => ALL_COMPONENTS.find(a => a.label === label);
-
-  const targets: Array<{ area: AreaComponent | undefined; half: Half }> = [
-    { area: get('EX/MEM'),  half: 'right' },
-    { area: get('Memory'),  half: 'right' },
-    { area: get('MEM/WB'),  half: 'left'  },
-  ];
-
-  return (
-    <>
-      {targets.map((t, idx) => {
-        if (!t.area) return null;
-        const a = t.area;
-
-        const base: React.CSSProperties = {
-          position: 'absolute',
-          left: `${a.x}%`,
-          top: `${a.y}%`,
-          width: `${a.w}%`,
-          height: `${a.h}%`,
-          pointerEvents: 'none',
-          zIndex: 33,
-        };
-
-        const leftHalf = (
-          <div key="left" style={{
-            position: 'absolute', left: 0, top: 0, width: '50%', height: '100%',
-            background: bg, border: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box'
-          }}/>
-        );
-        const rightHalf = (
-          <div key="right" style={{
-            position: 'absolute', left: '50%', top: 0, width: '50%', height: '100%',
-            background: bg, border: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box'
-          }}/>
-        );
-
-        const halves =
-          t.half === 'both' ? [leftHalf, rightHalf] :
-          t.half === 'left' ? [leftHalf] : [rightHalf];
-
-        return (
-          <div key={idx} style={base}>
-            {halves}
-            <div style={{
-              position: 'absolute', inset: 0, display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-              fontWeight: 700, color: 'black',
-              textShadow: '0 1px 2px rgba(87, 77, 77, 0.7)',
-              fontSize: 'clamp(10px, 1.2vw, 16px)',
-            }}>
-              {label}
-            </div>
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
-
-function MEMStoreOverlays({ allAreas }: { allAreas: AreaComponent[] }) {
-  const { instructions, instructionStages, registerUsage } = useSimulationState();
-  const i = 0;
-
-  if (!instructions[i]) return null;
-  const usage = registerUsage[i];
-  if (!usage || !isStore(usage.opcode)) return null; // only Store
-  if (instructionStages[i] !== 3) return null;        // 3 = MEM
-
-  const label = letterForIndex(i);
-  const bg = colorForIndex(i);
+  const overlays: React.ReactNode[] = [];
   const get = (label: string) => allAreas.find(a => a.label === label);
 
-  const targets: Array<{ area: AreaComponent | undefined; half: Half }> = [
-    { area: get('EX/MEM'), half: 'right' }, 
-    { area: get('Memory'), half: 'left'  },
-  ];
+  for (let i = 0; i < instructions.length; i++) {
+    const usage = registerUsage[i];
+    if (!usage || !(usage.isLoad || isStore(usage.opcode))) continue;
+    if (instructionStages[i] !== 3) continue; // 3 = MEM
 
-  return (
-    <>
-      {targets.map((t, idx) => {
-        if (!t.area) return null;
-        const a = t.area;
+    const label = letterForIndex(i);
+    const bg = colorForIndex(i);
 
-        const base: React.CSSProperties = {
-          position: 'absolute', left: `${a.x}%`, top: `${a.y}%`,
-          width: `${a.w}%`, height: `${a.h}%`, pointerEvents: 'none', zIndex: 43,
-        };
+    // LOAD:  EX/MEM --> right, Memory --> right, MEM/WB --> left
+    // STORE: EX/MEM --> right, Memory --> left,  (no MEM/WB)
+    const targets: Array<{ area?: AreaComponent; half: Half }> = [
+      { area: get('EX/MEM'), half: 'right' },
+      { area: get('Memory'), half: usage.isLoad ? 'right' : 'left' },
+      ...(usage.isLoad ? [{ area: get('MEM/WB'), half: 'left' as Half }] : []),
+    ];
 
-        const leftHalf = <div key="l" style={{position:'absolute',left:0,top:0,width:'50%',height:'100%',background:bg,border:'1px solid rgba(0,0,0,0.25)',boxSizing:'border-box'}} />;
-        const rightHalf= <div key="r" style={{position:'absolute',left:'50%',top:0,width:'50%',height:'100%',background:bg,border:'1px solid rgba(0,0,0,0.25)',boxSizing:'border-box'}} />;
+    overlays.push(
+      ...buildDirectOverlays(targets, bg, 33, label, `MEM-${i}`)
+    );
+  }
 
-        const halves = t.half === 'both' ? [leftHalf, rightHalf] : t.half === 'left' ? [leftHalf] : [rightHalf];
-
-        return (
-          <div key={idx} style={base}>
-            {halves}
-            <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,color:'black',textShadow:'0 1px 2px rgba(255,255,255,0.7)',fontSize:'clamp(10px,1.2vw,16px)'}}>
-              {label}
-            </div>
-          </div>
-        );
-      })}
-    </>
-  );
+  return <>{overlays}</>;
 }
-
 
 function WBLoadOverlays({ allAreas }: { allAreas: AreaComponent[] }) {
   const { instructions, instructionStages, registerUsage } = useSimulationState();
-  const i = 0; 
-
-  if (!instructions[i]) return null;
-  const usage = registerUsage[i];
-  if (!usage || !usage.isLoad) return null;     
-  const stageIndex = instructionStages[i];
-  if (stageIndex !== 4) return null;            // 4 = WB
-
-  const label = letterForIndex(i);
-  const bg = colorForIndex(i);
-
+  const overlays: React.ReactNode[] = [];
   const get = (label: string) => allAreas.find(a => a.label === label);
   const wbMux = WB_COMPONENTS.find(a => a.label === 'MUX');
 
-  const targets: Array<{ area: AreaComponent | undefined; half: Half }> = [
-    { area: get('Registers'), half: 'left'  }, 
-    { area: get('MEM/WB'),    half: 'right' },
-    { area: wbMux,            half: 'both'  },
-  ];
+  for (let i = 0; i < instructions.length; i++) {
+    const usage = registerUsage[i];
+    if (!usage || !usage.isLoad) continue;    // LOAD only in WB
+    if (instructionStages[i] !== 4) continue; // 4 = WB
 
-  return (
-    <>
-      {targets.map((t, idx) => {
-        if (!t.area) return null;
-        const a = t.area;
+    const label = letterForIndex(i);
+    const bg = colorForIndex(i);
 
-        const base: React.CSSProperties = {
-          position: 'absolute',
-          left: `${a.x}%`,
-          top: `${a.y}%`,
-          width: `${a.w}%`,
-          height: `${a.h}%`,
-          pointerEvents: 'none',
-          zIndex: 34,
-        };
+    const targets: Array<{ area?: AreaComponent; half: Half }> = [
+      { area: get('Registers'), half: 'left'  }, // Registers --> left
+      { area: get('MEM/WB'),    half: 'right' }, // MEM/WB --> right
+      { area: wbMux,            half: 'both'  }, // MUX --> full
+    ];
 
-        const leftHalf = (
-          <div key="left" style={{
-            position: 'absolute', left: 0, top: 0, width: '50%', height: '100%',
-            background: bg, border: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box'
-          }}/>
-        );
-        const rightHalf = (
-          <div key="right" style={{
-            position: 'absolute', left: '50%', top: 0, width: '50%', height: '100%',
-            background: bg, border: '1px solid rgba(0,0,0,0.25)', boxSizing: 'border-box'
-          }}/>
-        );
+    overlays.push(
+      ...buildDirectOverlays(targets, bg, 34, label, `WB-${i}`)
+    );
+  }
 
-        const halves =
-          t.half === 'both' ? [leftHalf, rightHalf] :
-          t.half === 'left' ? [leftHalf] : [rightHalf];
-
-        return (
-          <div key={idx} style={base}>
-            {halves}
-            <div style={{
-              position: 'absolute', inset: 0, display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-              fontWeight: 700, color: 'black',
-              textShadow: '0 1px 2px rgba(87, 77, 77, 0.7)',
-              fontSize: 'clamp(10px, 1.2vw, 16px)',
-            }}>
-              {label}
-            </div>
-          </div>
-        );
-      })}
-    </>
-  );
+  return <>{overlays}</>;
 }
-
-
-
 
 export default function GraphicPipelineVisualization({
     imageSrc = '/datapath.jpg',
@@ -644,9 +419,8 @@ export default function GraphicPipelineVisualization({
         <IfOverlays allAreas={ALL_COMPONENTS} />
         <IdOverlays allAreas={ALL_COMPONENTS} />
         <EXLoadOverlays />
-        <MEMLoadOverlays allAreas={ALL_COMPONENTS} />
+        <MEMOverlays allAreas={ALL_COMPONENTS} />
         <WBLoadOverlays allAreas={ALL_COMPONENTS} />
-        <MEMStoreOverlays allAreas={ALL_COMPONENTS} />
     </div>
   );
 }
