@@ -30,6 +30,7 @@ interface InstructionInputProps {
   onInstructionsSubmit: (instructions: string[]) => void;
   onReset: () => void;
   isRunning: boolean; // Keep isRunning prop for button state logic
+  preset?: string;
 }
 
 const HEX_REGEX = /^[0-9a-fA-F]{8}$/; // Basic check for 8 hex characters
@@ -38,9 +39,19 @@ export function InstructionInput({
   onInstructionsSubmit,
   onReset,
   isRunning,
+  preset,
 }: InstructionInputProps) {
   const [inputText, setInputText] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+
+  // Preset defualts for text area if not running
+  useEffect(() => {
+    if (!isRunning) {
+      // only set if user hasn't typed anything
+      if (!inputText.trim() && preset) setInputText(preset);
+    }
+  }, [preset, isRunning]);
+
   const {
     pauseSimulation,
     resumeSimulation,
