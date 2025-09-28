@@ -135,6 +135,7 @@ export function InstructionInput({
     if (hasStarted && isFinished) {
       setTimeout(() => {
         onReset();
+        window.dispatchEvent(new CustomEvent('pipeline:reset'));
         setTimeout(() => {
           const currentInstructions = inputText
             .trim()
@@ -163,6 +164,7 @@ export function InstructionInput({
     if (hasStarted && isFinished) {
       setTimeout(() => {
         onReset();
+        window.dispatchEvent(new CustomEvent('pipeline:reset'));
         setTimeout(() => {
           const currentInstructions = inputText
             .trim()
@@ -325,7 +327,10 @@ export function InstructionInput({
           {hasStarted && (
             <Button
               variant='destructive'
-              onClick={onReset}
+              onClick={() => {
+                onReset();
+                window.dispatchEvent(new CustomEvent('pipeline:reset'));
+              }}
               size='icon'
               aria-label='Reset Simulation'
             >
