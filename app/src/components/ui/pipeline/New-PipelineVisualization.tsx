@@ -68,27 +68,29 @@ export default function NewPipelineVisualization() {
     }
   }, [instructions.length]);
 
-  // Build current register view from stage map
+  // Build current register view with idx tagging
   const pipelineNow: PipelineCell[] = useMemo(() => {
     const idxOf = (s: StageName) => STAGES.indexOf(s);
 
     return REGISTER_FROM_STAGE.map(({ name, from }) => {
       const fromIdx = idxOf(from);
       let hex: string | null = null;
+      let idx: number | null = null;
 
       for (const [iStr, sIdx] of Object.entries(instructionStages)) {
         if (sIdx === fromIdx) {
           const i = Number(iStr);
           hex = instructions[i] ?? null;
+          idx = i;
           break;
         }
       }
 
-      return { name, hex };
+      return { name, hex, idx };
     });
   }, [instructionStages, instructions]);
 
-  // Append history row on each new cycle. Persist across unmounts
+  // Append history row (hex + idx) and persist
   useEffect(() => {
     if (currentCycle <= 0) return;
     if (currentCycle === lastCycleLoggedRef.current) return;
@@ -102,7 +104,7 @@ export default function NewPipelineVisualization() {
       };
 
       pipelineNow.forEach(cell => {
-        next[cell.name].push(cell.hex);
+        next[cell.name].push({ hex: cell.hex, idx: cell.idx });
       });
 
       persistedHistory = next;

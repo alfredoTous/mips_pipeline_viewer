@@ -5,6 +5,7 @@ export type RegisterName = 'IF/ID' | 'ID/EX' | 'EX/MEM' | 'MEM/WB';
 export interface PipelineCell {
   name: RegisterName;
   hex: string | null;
+  idx: number | null; // instruction index for tag
 }
 
 const STAGES = [
@@ -31,6 +32,7 @@ export function PipelineDisplay({ pipeline }: { pipeline: PipelineCell[] }) {
                 instruction={cell.hex ?? '---'}
                 fullInstruction={cell.hex ?? 'empty'}
                 isActive={cell.hex !== null}
+                instructionIndex={cell.idx}
               />
             </div>
             {index < pipeline.length - 1 && (

@@ -10,6 +10,7 @@ interface PipelineStageProps {
   instruction: string;      // hex or '---'
   fullInstruction: string;  // used in tooltip
   isActive: boolean;
+  instructionIndex?: number | null; // tag index
 }
 
 const registerDetails: Record<RegisterName, { name: string }> = {
@@ -19,14 +20,16 @@ const registerDetails: Record<RegisterName, { name: string }> = {
   'MEM/WB': { name: 'Memory Access / Write Back' },
 };
 
-export function PipelineStage({ stageName, instruction, fullInstruction, isActive }: PipelineStageProps) {
-  const fmt = (v: string) => {
-    const raw = v.startsWith('0x') ? v.slice(2) : v;
-    if (raw.toLowerCase() === '00000000') return 'nop';
-    return '0x' + raw.toLowerCase();
-  };
-  const shortText = instruction && instruction !== '---' ? fmt(instruction) : '---';
-  const longText = fullInstruction && fullInstruction !== 'empty' ? fmt(fullInstruction) : 'empty';
+const fmtHex = (v: string) => {
+  const raw = v.startsWith('0x') ? v.slice(2) : v;
+  if (raw.toLowerCase() === '00000000') return 'nop';
+  return '0x' + raw.toLowerCase();
+};
+
+export function PipelineStage({ stageName, instruction, fullInstruction, isActive, instructionIndex }: PipelineStageProps) {
+  const shortText = instruction && instruction !== '---' ? fmtHex(instruction) : '---';
+  const longText = fullInstruction && fullInstruction !== 'empty' ? fmtHex(fullInstruction) : 'empty';
+  const tag = instructionIndex != null ? `[${instructionIndex + 1}] ` : '';
 
   return (
     <TooltipProvider>
@@ -46,14 +49,14 @@ export function PipelineStage({ stageName, instruction, fullInstruction, isActiv
             </CardHeader>
             <CardContent className="p-2 md:p-4 pt-0">
               <p className="font-mono text-xs md:text-sm truncate bg-muted/50 rounded-md p-2 h-9 flex items-center justify-center">
-                {shortText || '---'}
+                {shortText === '---' ? '---' : `${tag}${shortText}`}
               </p>
             </CardContent>
           </Card>
         </TooltipTrigger>
         <TooltipContent>
           <p className="font-semibold">{registerDetails[stageName].name} Register</p>
-          <p className="font-mono text-sm">{longText || 'empty'}</p>
+          <p className="font-mono text-sm">{longText === 'empty' ? 'empty' : `${tag}${longText}`}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
