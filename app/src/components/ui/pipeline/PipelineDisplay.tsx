@@ -2,10 +2,28 @@ import { PipelineStage } from "./PipelineStage";
 
 export type RegisterName = 'IF/ID' | 'ID/EX' | 'EX/MEM' | 'MEM/WB';
 
+export interface HazardInfo {
+  type: 'RAW' | 'WAW' | 'NONE';
+  description: string;
+  canForward: boolean;
+  stallCycles: number;
+}
+
+export interface ForwardingInfo {
+  from: number;
+  to: number;
+  fromStage: 'IF' | 'ID' | 'EX' | 'MEM' | 'WB';
+  toStage: 'IF' | 'ID' | 'EX' | 'MEM' | 'WB';
+  register: string;
+}
+
 export interface PipelineCell {
   name: RegisterName;
   hex: string | null;
   idx: number | null; // instruction index for tag
+  hazard?: HazardInfo;
+  forwardings: ForwardingInfo[];
+  stallCount: number;
 }
 
 const STAGES = [
@@ -33,6 +51,9 @@ export function PipelineDisplay({ pipeline }: { pipeline: PipelineCell[] }) {
                 fullInstruction={cell.hex ?? 'empty'}
                 isActive={cell.hex !== null}
                 instructionIndex={cell.idx}
+                hazard={cell.hazard}
+                forwardings={cell.forwardings}
+                stallCount={cell.stallCount}
               />
             </div>
             {index < pipeline.length - 1 && (

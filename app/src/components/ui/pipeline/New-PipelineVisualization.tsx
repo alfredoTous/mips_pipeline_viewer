@@ -24,12 +24,17 @@ let persistedHistory: HistoryDict | null = null;
 let persistedSig = '';
 let persistedLastCycle = 0;
 
+// Consumes Simulation Context
 export default function NewPipelineVisualization() {
   const {
     instructions,
     instructionStages,
     currentCycle,
     isFinished,
+    hazards,
+    forwardings,
+    stalls,
+    currentStallCycles,
   } = useSimulationState();
 
   const signature = useMemo(() => instructions.join('|'), [instructions]);
@@ -86,11 +91,14 @@ export default function NewPipelineVisualization() {
         }
       }
 
-      return { name, hex, idx };
-    });
-  }, [instructionStages, instructions]);
+      const hazard = idx != null ? hazards[idx] : undefined;
+      const fwd = idx != null ? (forwardings[idx] ?? []) : [];
+      const stallCount = idx != null ? (stalls[idx] ?? 0) : 0;
 
-  // Append history row (hex + idx) and persist
+      return { name, hex, idx, hazard, forwardings: fwd, stallCount };
+    });
+  }, [instructionStages, instructions, hazards, forwardings, stalls]);
+
   useEffect(() => {
     if (currentCycle <= 0) return;
     if (currentCycle === lastCycleLoggedRef.current) return;
@@ -131,6 +139,11 @@ export default function NewPipelineVisualization() {
             <h2 className="text-2xl font-semibold font-headline">Pipeline Registers</h2>
             <div className="text-right">
               <div className="font-mono text-lg">Clock Cycle: {currentCycle}</div>
+              {currentStallCycles > 0 && (
+                <div className="text-xs text-blue-700 bg-blue-100 border border-blue-200 rounded-full px-3 py-0.5 inline-block mt-1">
+                  Inserting stall · {currentStallCycles} left
+                </div>
+              )}
               {finished && <p className="text-primary font-semibold">Simulation Finished!</p>}
             </div>
           </div>
@@ -141,7 +154,7 @@ export default function NewPipelineVisualization() {
       <Card>
         <CardContent className="p-6">
           <h2 className="text-2xl font-semibold font-headline mb-4">Pipeline History</h2>
-          <PipelineHistory history={history} />
+          <PipelineHistory history={history} hazards={hazards} forwardings={forwardings} stalls={stalls} />
         </CardContent>
       </Card>
     </div>
