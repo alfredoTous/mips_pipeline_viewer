@@ -1,6 +1,7 @@
 'use client';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { AlertTriangle, Zap } from 'lucide-react';
 
 export type RegisterName = 'IF/ID' | 'ID/EX' | 'EX/MEM' | 'MEM/WB';
 export type HistoryEntry = { hex: string | null; idx: number | null };
@@ -23,7 +24,9 @@ const formatHex = (v: string | null) => {
 };
 
 const Chip = ({ className, children }: { className: string; children: React.ReactNode }) => (
-  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${className}`}>{children}</span>
+  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${className}`}>
+    {children}
+  </span>
 );
 
 export function PipelineHistory({
@@ -52,10 +55,22 @@ export function PipelineHistory({
                 const hasFwd = entry.idx != null ? (forwardings[entry.idx]?.length ?? 0) > 0 : false;
                 const stallCount = entry.idx != null ? (stalls[entry.idx] ?? 0) : 0;
 
+                // background hues inline with display
+                const rowTone =
+                  stallCount > 0
+                    ? 'bg-red-50'
+                    : hasFwd
+                    ? 'bg-green-50'
+                    : hz?.type === 'RAW'
+                    ? 'bg-rose-50'
+                    : hz?.type === 'WAW'
+                    ? 'bg-amber-50'
+                    : 'bg-background';
+
                 return (
                   <div
                     key={index}
-                    className="grid grid-cols-[1.5rem_1fr] items-center font-mono text-xs p-1.5 rounded-sm bg-background"
+                    className={`grid grid-cols-[1.5rem_1fr] items-center font-mono text-xs p-1.5 rounded-sm ${rowTone}`}
                   >
                     <span className="text-[10px] text-muted-foreground">{index + 1}</span>
                     <div className="flex items-center justify-between gap-2">
@@ -63,12 +78,26 @@ export function PipelineHistory({
                         {entry.hex ? `${tag}${formatHex(entry.hex)}` : 'empty'}
                       </span>
                       <div className="flex items-center gap-1 shrink-0">
-                        {hz?.type === 'RAW' && <Chip className="bg-red-100 text-red-700 border-red-200">RAW</Chip>}
-                        {hz?.type === 'WAW' && <Chip className="bg-amber-100 text-amber-700 border-amber-200">WAW</Chip>}
-                        {stallCount > 0 && (
-                          <Chip className="bg-blue-100 text-blue-700 border-blue-200">stall ×{stallCount}</Chip>
+                        {hz?.type === 'RAW' && (
+                          <Chip className="bg-rose-100 text-rose-700 border-rose-200">
+                            <AlertTriangle className="w-3 h-3" /> RAW
+                          </Chip>
                         )}
-                        {hasFwd && <Chip className="bg-green-100 text-green-700 border-green-200">fwd</Chip>}
+                        {hz?.type === 'WAW' && (
+                          <Chip className="bg-amber-100 text-amber-700 border-amber-200">
+                            <AlertTriangle className="w-3 h-3" /> WAW
+                          </Chip>
+                        )}
+                        {stallCount > 0 && (
+                          <Chip className="bg-red-100 text-red-700 border-red-200">
+                            <AlertTriangle className="w-3 h-3" /> stall ×{stallCount}
+                          </Chip>
+                        )}
+                        {hasFwd && (
+                          <Chip className="bg-green-100 text-green-700 border-green-200">
+                            <Zap className="w-3 h-3" /> fwd
+                          </Chip>
+                        )}
                       </div>
                     </div>
                   </div>
