@@ -20,8 +20,13 @@ const registerDetails: Record<RegisterName, { name: string }> = {
 };
 
 export function PipelineStage({ stageName, instruction, fullInstruction, isActive }: PipelineStageProps) {
-  const shortText = instruction === '0x00000000' ? 'nop' : instruction;
-  const longText = fullInstruction === '0x00000000' ? 'nop' : fullInstruction;
+  const fmt = (v: string) => {
+    const raw = v.startsWith('0x') ? v.slice(2) : v;
+    if (raw.toLowerCase() === '00000000') return 'nop';
+    return '0x' + raw.toLowerCase();
+  };
+  const shortText = instruction && instruction !== '---' ? fmt(instruction) : '---';
+  const longText = fullInstruction && fullInstruction !== 'empty' ? fmt(fullInstruction) : 'empty';
 
   return (
     <TooltipProvider>

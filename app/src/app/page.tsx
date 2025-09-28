@@ -25,12 +25,12 @@ type ViewMode = 'table' | 'classic' | 'graphic';
 // Default Instructions
 const DEFAULTS = 
   [
-    '02108025', // or
-    '8e110000', // lw $s1,0($s0)
-    'ae120004', // sw $s2,4($s0)
-    '00640820', // add $a0,$v1,$a0
-    '10800001', // beq $a0,$zero,1
-    '00000000', // nop
+    '0x02108025', // or
+    '0x8e110000', // lw $s1,0($s0)
+    '0xae120004', // sw $s2,4($s0)
+    '0x00640820', // add $a0,$v1,$a0
+    '0x10800001', // beq $a0,$zero,1
+    '0x00000000', // nop
   ].join('\n');
 export default function Home() {
   // Get state and actions from context

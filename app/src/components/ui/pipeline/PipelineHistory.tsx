@@ -11,6 +11,13 @@ const stageDetails: Record<RegisterName, { name: string }> = {
   'MEM/WB': { name: 'MEM/WB Register' },
 };
 
+const formatHex = (v: string | null) => {
+  if (!v) return 'empty';
+  const raw = v.startsWith('0x') ? v.slice(2) : v;
+  if (raw.toLowerCase() === '00000000') return 'nop';
+  return '0x' + raw.toLowerCase();
+};
+
 export function PipelineHistory({ history }: { history: HistoryDict }) {
   const registers = Object.keys(history) as RegisterName[];
 
@@ -24,7 +31,7 @@ export function PipelineHistory({ history }: { history: HistoryDict }) {
               {history[reg].map((hex, index) => (
                 <div key={index}>
                   <div className="font-mono text-xs p-1.5 rounded-sm text-center bg-background">
-                    {hex ? (hex === '0x00000000' ? 'nop' : hex) : 'empty'}
+                    {formatHex(hex)}
                   </div>
                 </div>
               ))}

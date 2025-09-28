@@ -95,6 +95,7 @@ export function InstructionInput({
     const lines = inputText.trim().split('\n');
     const currentInstructions = lines
       .map((line) => line.trim())
+      .map((line) => line.replace(/^0x/i, '')) // allow optional 0x prefix
       .filter((line) => line.length > 0);
 
     if (currentInstructions.length === 0) {
