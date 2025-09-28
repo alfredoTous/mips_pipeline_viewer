@@ -7,10 +7,10 @@ import { AlertTriangle, Zap, Code2, Cpu, MemoryStick, CheckSquare } from 'lucide
 
 interface PipelineStageProps {
   stageName: RegisterName;
-  instruction: string;      // hex or '---'
-  fullInstruction: string;  // used in tooltip
+  instruction: string;
+  fullInstruction: string;
   isActive: boolean;
-  instructionIndex?: number | null; // tag index
+  instructionIndex?: number | null;
   hazard?: HazardInfo;
   forwardings?: ForwardingInfo[];
   stallCount?: number;
@@ -23,12 +23,12 @@ const registerDetails: Record<RegisterName, { name: string }> = {
   'MEM/WB': { name: 'Memory Access / Write Back' },
 };
 
-// Default stage icon per *register* (tomamos el segundo tramo de cada registro)
+// Icon per register (right-hand stage of the register)
 const registerIcon: Record<RegisterName, React.ComponentType<{ className?: string }>> = {
-  'IF/ID': Code2,       // ID
-  'ID/EX': Cpu,         // EX
-  'EX/MEM': MemoryStick,// MEM
-  'MEM/WB': CheckSquare // WB
+  'IF/ID': Code2,        // ID
+  'ID/EX': Cpu,          // EX
+  'EX/MEM': MemoryStick, // MEM
+  'MEM/WB': CheckSquare, // WB
 };
 
 const fmtHex = (v: string) => {
@@ -58,15 +58,18 @@ export function PipelineStage({
   const longText = fullInstruction && fullInstruction !== 'empty' ? fmtHex(fullInstruction) : 'empty';
   const tag = instructionIndex != null ? `[${instructionIndex + 1}] ` : '';
 
-  // Visual state
-  const hazardType = hazard?.type ?? 'NONE';
-  const hasFwd = forwardings.length > 0;
+  // Show rules bound to the *stage* of the instruction
+  const showStall = stageName === 'ID/EX' && stallCount > 0;         // stalls are inserted in ID
+  const showForward = stageName === 'EX/MEM' && forwardings.length > 0; // forwarding happens in EX
+  const showHazard = stageName === 'ID/EX' && (hazard?.type ?? 'NONE') !== 'NONE';
 
-  // Color system (prioridad: stall > fwd > hazard > normal)
+  const hazardType = showHazard ? (hazard?.type ?? 'NONE') : 'NONE';
+
+  // Card color priority: stall > forward > RAW > WAW > active > normal
   const cardTone =
-    stallCount > 0
+    showStall
       ? 'bg-red-50 border-red-300'
-      : hasFwd
+      : showForward
       ? 'bg-green-50 border-green-300'
       : hazardType === 'RAW'
       ? 'bg-rose-50 border-rose-300'
@@ -77,9 +80,9 @@ export function PipelineStage({
       : 'border-border';
 
   const titleTone =
-    stallCount > 0
+    showStall
       ? 'text-red-700'
-      : hasFwd
+      : showForward
       ? 'text-green-700'
       : hazardType === 'RAW'
       ? 'text-rose-700'
@@ -107,25 +110,24 @@ export function PipelineStage({
                 {shortText === '---' ? '---' : `${tag}${shortText}`}
               </p>
 
-              {/* Chips row */}
-              {(hazardType !== 'NONE' || stallCount > 0 || hasFwd) && (
+              {(showHazard || showStall || showForward) && (
                 <div className="flex flex-wrap gap-1 justify-center mt-2">
-                  {hazardType === 'RAW' && (
+                  {showHazard && hazardType === 'RAW' && (
                     <Chip className="bg-rose-100 text-rose-700 border-rose-200">
                       <AlertTriangle className="w-3 h-3" /> RAW
                     </Chip>
                   )}
-                  {hazardType === 'WAW' && (
+                  {showHazard && hazardType === 'WAW' && (
                     <Chip className="bg-amber-100 text-amber-700 border-amber-200">
                       <AlertTriangle className="w-3 h-3" /> WAW
                     </Chip>
                   )}
-                  {stallCount > 0 && (
+                  {showStall && (
                     <Chip className="bg-red-100 text-red-700 border-red-200">
                       <AlertTriangle className="w-3 h-3" /> stall ×{stallCount}
                     </Chip>
                   )}
-                  {hasFwd && (
+                  {showForward && (
                     <Chip className="bg-green-100 text-green-700 border-green-200">
                       <Zap className="w-3 h-3" /> fwd
                     </Chip>
@@ -136,11 +138,12 @@ export function PipelineStage({
           </Card>
         </TooltipTrigger>
 
-        {/* Tooltip with details */}
         <TooltipContent className="max-w-sm">
           <p className="font-semibold">{registerDetails[stageName].name} Register</p>
           <p className="font-mono text-sm mb-2">{longText === 'empty' ? 'empty' : `${tag}${longText}`}</p>
-          {hazard && hazard.type !== 'NONE' && (
+
+          {/* Hazard details: only relevant at ID/EX */}
+          {showHazard && hazard && (
             <div className="text-xs">
               <p className="font-semibold mb-1">Hazard</p>
               <p className="mb-1">{hazard.description}</p>
@@ -148,7 +151,9 @@ export function PipelineStage({
               <p>Can forward: {hazard.canForward ? 'Yes' : 'No'}</p>
             </div>
           )}
-          {forwardings.length > 0 && (
+
+          {/* Forwarding paths: only relevant at EX/MEM */}
+          {showForward && forwardings.length > 0 && (
             <div className="text-xs mt-2">
               <p className="font-semibold mb-1">Forwarding Paths</p>
               <ul className="list-disc pl-4 space-y-0.5">

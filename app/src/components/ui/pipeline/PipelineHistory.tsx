@@ -55,15 +55,19 @@ export function PipelineHistory({
                 const hasFwd = entry.idx != null ? (forwardings[entry.idx]?.length ?? 0) > 0 : false;
                 const stallCount = entry.idx != null ? (stalls[entry.idx] ?? 0) : 0;
 
-                // background hues inline with display
+                // Show rules bound to panel's register
+                const showHazard = reg === 'ID/EX' && hz?.type && hz.type !== 'NONE';
+                const showStall = reg === 'ID/EX' && stallCount > 0;
+                const showForward = reg === 'EX/MEM' && hasFwd;
+
                 const rowTone =
-                  stallCount > 0
+                  showStall
                     ? 'bg-red-50'
-                    : hasFwd
+                    : showForward
                     ? 'bg-green-50'
-                    : hz?.type === 'RAW'
+                    : showHazard && hz?.type === 'RAW'
                     ? 'bg-rose-50'
-                    : hz?.type === 'WAW'
+                    : showHazard && hz?.type === 'WAW'
                     ? 'bg-amber-50'
                     : 'bg-background';
 
@@ -78,22 +82,22 @@ export function PipelineHistory({
                         {entry.hex ? `${tag}${formatHex(entry.hex)}` : 'empty'}
                       </span>
                       <div className="flex items-center gap-1 shrink-0">
-                        {hz?.type === 'RAW' && (
+                        {showHazard && hz?.type === 'RAW' && (
                           <Chip className="bg-rose-100 text-rose-700 border-rose-200">
                             <AlertTriangle className="w-3 h-3" /> RAW
                           </Chip>
                         )}
-                        {hz?.type === 'WAW' && (
+                        {showHazard && hz?.type === 'WAW' && (
                           <Chip className="bg-amber-100 text-amber-700 border-amber-200">
                             <AlertTriangle className="w-3 h-3" /> WAW
                           </Chip>
                         )}
-                        {stallCount > 0 && (
+                        {showStall && (
                           <Chip className="bg-red-100 text-red-700 border-red-200">
                             <AlertTriangle className="w-3 h-3" /> stall ×{stallCount}
                           </Chip>
                         )}
-                        {hasFwd && (
+                        {showForward && (
                           <Chip className="bg-green-100 text-green-700 border-green-200">
                             <Zap className="w-3 h-3" /> fwd
                           </Chip>
