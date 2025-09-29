@@ -96,44 +96,72 @@ export function PipelineStage({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Card className={['text-center transition-all duration-300 w-full h-full', cardTone].join(' ')}>
+          <Card
+            className={[
+              'text-center w-full h-full',
+              // Very subtle color/opacity/shadow transitions
+              'transition-[background-color,border-color,box-shadow,transform,opacity] duration-400',
+              (isActive || showStall || showForward || showHazard) ? 'opacity-100' : 'opacity-70',
+              cardTone,
+            ].join(' ')}
+          >
             <CardHeader className="p-2 md:p-3">
               <div className="flex items-center justify-center gap-2">
-                <Icon className="w-4 h-4 opacity-70" />
-                <CardTitle className={['text-sm md:text-base font-bold', titleTone].join(' ')}>
+                <Icon className="w-4 h-4 opacity-70 transition-opacity duration-300" />
+                <CardTitle
+                  className={[
+                    'text-sm md:text-base font-bold',
+                    'transition-colors duration-300',
+                    titleTone,
+                  ].join(' ')}
+                >
                   {stageName}
                 </CardTitle>
               </div>
             </CardHeader>
             <CardContent className="p-2 md:p-4 pt-0">
-              <p className="font-mono text-xs md:text-sm truncate bg-muted/50 rounded-md p-2 h-9 flex items-center justify-center">
+              <p
+                className={[
+                  'font-mono text-xs md:text-sm truncate bg-muted/50 rounded-md p-2 h-9 flex items-center justify-center',
+                  'transition-[background-color,color,opacity] duration-300',
+                  (isActive || showStall || showForward || showHazard) ? 'opacity-100' : 'opacity-85',
+                ].join(' ')}
+              >
                 {shortText === '---' ? '---' : `${tag}${shortText}`}
               </p>
 
-              {(showHazard || showStall || showForward) && (
-                <div className="flex flex-wrap gap-1 justify-center mt-2">
-                  {showHazard && hazardType === 'RAW' && (
-                    <Chip className="bg-rose-100 text-rose-700 border-rose-200">
-                      <AlertTriangle className="w-3 h-3" /> RAW
-                    </Chip>
-                  )}
-                  {showHazard && hazardType === 'WAW' && (
-                    <Chip className="bg-amber-100 text-amber-700 border-amber-200">
-                      <AlertTriangle className="w-3 h-3" /> WAW
-                    </Chip>
-                  )}
-                  {showStall && (
-                    <Chip className="bg-red-100 text-red-700 border-red-200">
-                      <AlertTriangle className="w-3 h-3" /> stall ×{stallCount}
-                    </Chip>
-                  )}
-                  {showForward && (
-                    <Chip className="bg-green-100 text-green-700 border-green-200">
-                      <Zap className="w-3 h-3" /> fwd
-                    </Chip>
-                  )}
-                </div>
-              )}
+              <div className="mt-2 h-5 flex items-center justify-center gap-1">
+                {/* RAW slot */}
+                {showHazard && hazardType === 'RAW' ? (
+                  <Chip className="bg-rose-100 text-rose-700 border-rose-200 transition-opacity duration-300 opacity-100">
+                    <AlertTriangle className="w-3 h-3" /> RAW
+                  </Chip>
+                ) : showHazard && hazardType === 'WAW' ? (
+                  <Chip className="bg-amber-100 text-amber-700 border-amber-200 transition-opacity duration-300 opacity-100">
+                    <AlertTriangle className="w-3 h-3" /> WAW
+                  </Chip>
+                ) : (
+                  <span className="h-5 px-2 rounded-full border border-transparent opacity-0 transition-opacity duration-300" />
+                )}
+
+                {/* STALL slot */}
+                {showStall ? (
+                  <Chip className="bg-red-100 text-red-700 border-red-200 transition-opacity duration-300 opacity-100">
+                    <AlertTriangle className="w-3 h-3" /> stall ×{stallCount}
+                  </Chip>
+                ) : (
+                  <span className="h-5 px-2 rounded-full border border-transparent opacity-0 transition-opacity duration-300" />
+                )}
+
+                {/* FORWARD slot */}
+                {showForward ? (
+                  <Chip className="bg-green-100 text-green-700 border-green-200 transition-opacity duration-300 opacity-100">
+                    <Zap className="w-3 h-3" /> fwd
+                  </Chip>
+                ) : (
+                  <span className="h-5 px-2 rounded-full border border-transparent opacity-0 transition-opacity duration-300" />
+                )}
+              </div>
             </CardContent>
           </Card>
         </TooltipTrigger>
@@ -142,7 +170,6 @@ export function PipelineStage({
           <p className="font-semibold">{registerDetails[stageName].name} Register</p>
           <p className="font-mono text-sm mb-2">{longText === 'empty' ? 'empty' : `${tag}${longText}`}</p>
 
-          {/* Hazard details: only relevant at ID/EX */}
           {showHazard && hazard && (
             <div className="text-xs">
               <p className="font-semibold mb-1">Hazard</p>
@@ -152,7 +179,6 @@ export function PipelineStage({
             </div>
           )}
 
-          {/* Forwarding paths: only relevant at EX/MEM */}
           {showForward && forwardings.length > 0 && (
             <div className="text-xs mt-2">
               <p className="font-semibold mb-1">Forwarding Paths</p>

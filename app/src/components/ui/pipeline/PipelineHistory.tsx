@@ -55,7 +55,6 @@ export function PipelineHistory({
                 const hasFwd = entry.idx != null ? (forwardings[entry.idx]?.length ?? 0) > 0 : false;
                 const stallCount = entry.idx != null ? (stalls[entry.idx] ?? 0) : 0;
 
-                // Show rules bound to panel's register
                 const showHazard = reg === 'ID/EX' && hz?.type && hz.type !== 'NONE';
                 const showStall = reg === 'ID/EX' && stallCount > 0;
                 const showForward = reg === 'EX/MEM' && hasFwd;
@@ -74,33 +73,38 @@ export function PipelineHistory({
                 return (
                   <div
                     key={index}
-                    className={`grid grid-cols-[1.5rem_1fr] items-center font-mono text-xs p-1.5 rounded-sm ${rowTone}`}
+                    className={`grid grid-cols-[1.5rem_1fr] items-center font-mono text-xs p-1.5 rounded-sm transition-colors duration-300 ${rowTone}`}
                   >
                     <span className="text-[10px] text-muted-foreground">{index + 1}</span>
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate">
                         {entry.hex ? `${tag}${formatHex(entry.hex)}` : 'empty'}
                       </span>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {showHazard && hz?.type === 'RAW' && (
-                          <Chip className="bg-rose-100 text-rose-700 border-rose-200">
+
+                      {/* fixed-width area to avoid layout shift */}
+                      <div className="flex items-center gap-1 shrink-0 w-[140px] justify-end">
+                        {showHazard && hz?.type === 'RAW' ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border bg-rose-100 text-rose-700 border-rose-200 transition-all duration-300">
                             <AlertTriangle className="w-3 h-3" /> RAW
-                          </Chip>
+                          </span>
+                        ) : (
+                          <span className="h-5 px-1.5 rounded-full border border-transparent opacity-0" />
                         )}
-                        {showHazard && hz?.type === 'WAW' && (
-                          <Chip className="bg-amber-100 text-amber-700 border-amber-200">
-                            <AlertTriangle className="w-3 h-3" /> WAW
-                          </Chip>
-                        )}
-                        {showStall && (
-                          <Chip className="bg-red-100 text-red-700 border-red-200">
+
+                        {showStall ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border bg-red-100 text-red-700 border-red-200 transition-all duration-300">
                             <AlertTriangle className="w-3 h-3" /> stall ×{stallCount}
-                          </Chip>
+                          </span>
+                        ) : (
+                          <span className="h-5 px-1.5 rounded-full border border-transparent opacity-0" />
                         )}
-                        {showForward && (
-                          <Chip className="bg-green-100 text-green-700 border-green-200">
+
+                        {showForward ? (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border bg-green-100 text-green-700 border-green-200 transition-all duration-300">
                             <Zap className="w-3 h-3" /> fwd
-                          </Chip>
+                          </span>
+                        ) : (
+                          <span className="h-5 px-1.5 rounded-full border border-transparent opacity-0" />
                         )}
                       </div>
                     </div>
